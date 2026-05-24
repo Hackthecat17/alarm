@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0F1117">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>말뚝 시간표</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+--bg:#0F1117;--sf:#1A1D27;--sfh:#242836;--bd:#2A2E3A;
+--tx:#E8E8EC;--txd:#8B8FA3;--major:#E85D3A;--minor:#3A8EE8;
+--ok:#2ECC71;--okd:rgba(46,204,113,0.15);--danger:#E83C3C;
+}
+html,body{height:100%;background:var(--bg);color:var(--tx);
+font-family:'Apple SD Gothic Neo','Pretendard',sans-serif;
+overflow-x:hidden;touch-action:pan-y}
+input,select,button{font-family:inherit}
+input,select{color:var(--tx);background:var(--sfh);border:1px solid var(--bd);
+border-radius:6px;padding:7px 8px;font-size:13px;outline:none}
+input:focus,select:focus{border-color:var(--major)}
+button{cursor:pointer;border:none;font-weight:600}
+
+.app{max-width:500px;margin:0 auto;padding:16px 14px 100px;min-height:100vh}
+
+/* Header */
+.hdr{margin-bottom:18px}
+.hdr h1{font-size:21px;font-weight:800;letter-spacing:-0.5px}
+.hdr h1 span{color:var(--major)}
+.hdr p{color:var(--txd);font-size:12px;margin-top:3px}
+
+/* Timeline bar */
+.bar-wrap{background:var(--sf);border-radius:12px;padding:14px 10px;
+margin-bottom:14px;border:1px solid var(--bd)}
+.bar{display:flex;height:44px;border-radius:8px;overflow:hidden}
+.bar-seg{height:100%;display:flex;flex-direction:column;align-items:center;
+justify-content:center;cursor:pointer;transition:background .15s;min-width:2px;
+border-right:1px solid var(--bg)}
+.bar-seg .lbl{font-size:9px;font-weight:700;white-space:nowrap;overflow:hidden;
+text-overflow:ellipsis;max-width:92%}
+.bar-seg .tm{font-size:8px;color:var(--txd)}
+
+/* Segment list */
+.seg{margin-bottom:5px}
+.seg-row{display:flex;align-items:center;gap:9px;padding:9px 11px;
+background:var(--sf);border-radius:10px;border:1px solid var(--bd);
+cursor:pointer;transition:all .12s}
+.seg-row.expanded{border-color:var(--major);border-radius:10px 10px 0 0}
+.seg-row.checked{background:var(--okd)}
+
+.chk{width:21px;height:21px;border-radius:5px;border:2px solid var(--bd);
+display:flex;align-items:center;justify-content:center;flex-shrink:0;
+transition:all .12s;background:transparent}
+.chk.on{border-color:var(--ok);background:var(--ok)}
+.chk.on::after{content:'✓';color:#fff;font-size:12px;font-weight:700}
+
+.peg-bar{width:3px;height:18px;border-radius:2px;flex-shrink:0}
+.peg-bar.major{width:4px;height:26px}
+
+.seg-info{flex:1;min-width:0}
+.seg-name{font-size:13px;font-weight:500}
+.seg-name.major{font-weight:700}
+.seg-name.done{text-decoration:line-through;color:var(--txd)}
+.seg-grp{font-size:9px;color:var(--txd);margin-left:5px;background:var(--sfh);
+padding:1px 5px;border-radius:3px}
+.seg-time{font-size:11px;color:var(--txd);margin-top:1px}
+.seg-dur{margin-left:5px;font-weight:600}
+.seg-arrow{font-size:12px;color:var(--txd);flex-shrink:0}
+
+.sel-dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--bd);
+flex-shrink:0;transition:all .12s}
+.sel-dot.on{border-color:var(--major);background:var(--major)}
+
+/* Edit panel */
+.seg-edit{padding:10px 11px;background:var(--sfh);border-radius:0 0 10px 10px;
+border:1px solid var(--major);border-top:none}
+.seg-edit .row{display:flex;gap:5px;flex-wrap:wrap}
+.seg-edit .row+.row{margin-top:6px}
+.seg-edit input,.seg-edit select{flex:1;min-width:70px}
+.btn-del{background:rgba(232,60,60,0.15);color:var(--danger);border-radius:6px;
+padding:6px 12px;font-size:12px}
+
+/* Add */
+.add-btn{width:100%;padding:10px;background:var(--sf);border:1px dashed var(--bd);
+border-radius:10px;color:var(--txd);font-size:13px;margin-bottom:14px}
+.add-panel{background:var(--sf);border-radius:12px;padding:12px;
+margin-bottom:14px;border:1px solid var(--bd)}
+.add-panel .title{font-size:13px;font-weight:700;margin-bottom:8px}
+.btn-add{background:var(--major);color:#fff;border-radius:6px;padding:6px 14px;font-size:12px}
+.btn-cancel{background:transparent;color:var(--txd);border:1px solid var(--bd);
+border-radius:6px;padding:6px 14px;font-size:12px}
+
+/* Shift */
+.shift-panel{background:var(--sf);border-radius:12px;padding:12px;
+border:1px solid var(--bd);margin-bottom:14px}
+.shift-panel .title{font-size:13px;font-weight:700;margin-bottom:8px}
+.mode-btns{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+.mode-btn{padding:5px 11px;font-size:11px;border-radius:6px;
+border:1px solid var(--bd);background:transparent;color:var(--txd)}
+.mode-btn.on{border-color:var(--major);background:rgba(232,93,58,0.15);color:var(--major)}
+.grp-btns{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+.grp-btn{padding:4px 9px;font-size:11px;border-radius:6px;
+border:1px solid var(--bd);background:transparent;color:var(--txd)}
+.grp-btn.on{border-color:var(--minor);background:rgba(58,142,232,0.15);color:var(--minor)}
+.shift-row{display:flex;gap:5px;align-items:center}
+.shift-left,.shift-right{flex:1;padding:8px;border-radius:8px;font-size:13px;font-weight:700}
+.shift-left{background:rgba(58,142,232,0.15);color:var(--minor)}
+.shift-right{background:rgba(232,93,58,0.15);color:var(--major)}
+.shift-sel{width:65px;text-align:center}
+.sel-info{font-size:11px;color:var(--txd);margin-bottom:6px}
+
+/* Notify */
+.notify-panel{background:var(--sf);border-radius:12px;padding:12px;
+border:1px solid var(--bd);margin-bottom:14px}
+.notify-panel .title{font-size:13px;font-weight:700;margin-bottom:8px}
+.notify-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.notify-status{font-size:12px;color:var(--txd)}
+.toggle{width:44px;height:24px;border-radius:12px;background:var(--bd);
+position:relative;cursor:pointer;transition:background .2s;border:none}
+.toggle.on{background:var(--ok)}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;
+border-radius:50%;background:#fff;transition:transform .2s}
+.toggle.on::after{transform:translateX(20px)}
+
+/* Progress */
+.progress{padding:9px 12px;background:var(--sf);border-radius:10px;
+border:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center}
+.progress .lbl{font-size:12px;color:var(--txd)}
+.progress .val{font-size:15px;font-weight:700;color:var(--ok)}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+
+<script>
+// ── State ──
+const LS_KEY = 'peg-schedule-data';
+let state = loadState();
+let expandedSeg = null;
+let shiftMode = null; // null|'all'|'group'|'selected'
+let shiftAmount = 60;
+let shiftGroup = '';
+let selectedPegs = new Set();
+let addMode = false;
+let notifyEnabled = false;
+let notifyTimers = [];
+
+function defaultState() {
+  return {
+    pegs: [
+      {id:1,name:'기상',time:420,type:'major',group:'생활'},
+      {id:2,name:'운동',time:480,type:'minor',group:''},
+      {id:3,name:'점심',time:720,type:'major',group:'식사'},
+      {id:4,name:'공부',time:780,type:'minor',group:''},
+      {id:5,name:'저녁',time:1080,type:'major',group:'식사'},
+      {id:6,name:'자유시간',time:1200,type:'minor',group:''},
+      {id:7,name:'취침',time:1380,type:'major',group:'생활'},
+    ],
+    checked: {},
+    nextId: 100
+  };
+}
+
+function loadState() {
+  try {
+    const d = localStorage.getItem(LS_KEY);
+    if (d) { const p = JSON.parse(d); if (p.pegs) return p; }
+  } catch(e) {}
+  return defaultState();
+}
+
+function saveState() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch(e) {}
+}
+
+// ── Helpers ──
+function m2t(m) {
+  const mm = ((m % 1440) + 1440) % 1440;
+  return String(Math.floor(mm/60)).padStart(2,'0') + ':' + String(mm%60).padStart(2,'0');
+}
+function t2m(t) { const [h,m] = t.split(':').map(Number); return h*60+m; }
+function dur(a,b) { let d=b-a; if(d<=0)d+=1440; return d; }
+function durStr(d) { const h=Math.floor(d/60),m=d%60; return h+'h'+(m>0?' '+m+'m':''); }
+
+function getSorted() { return [...state.pegs].sort((a,b)=>a.time-b.time); }
+function getSegments() {
+  const s = getSorted();
+  return s.map((p,i) => {
+    const nx = s[(i+1)%s.length];
+    return { from:p, to:nx, duration:dur(p.time,nx.time), id:p.id+'-'+nx.id };
+  });
+}
+function getGroups() { return [...new Set(state.pegs.map(p=>p.group).filter(Boolean))]; }
+
+// ── Notifications ──
+function scheduleNotifications() {
+  notifyTimers.forEach(t => clearTimeout(t));
+  notifyTimers = [];
+  if (!notifyEnabled || Notification.permission !== 'granted') return;
+
+  const now = new Date();
+  const nowMin = now.getHours()*60 + now.getMinutes();
+
+  state.pegs.forEach(p => {
+    let diff = p.time - nowMin;
+    if (diff <= 0) diff += 1440;
+    // notify 1 min before
+    let ms = (diff - 1) * 60000 - now.getSeconds()*1000;
+    if (ms < 0) ms += 1440*60000;
+    if (ms > 0 && ms < 1440*60000) {
+      const tid = setTimeout(() => {
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.ready.then(reg => {
+            reg.showNotification('말뚝 시간표', {
+              body: `${m2t(p.time)} — ${p.name}`,
+              icon: 'icon-192.png',
+              badge: 'icon-192.png',
+              tag: 'peg-'+p.id,
+              renotify: true
+            });
+          });
+        } else {
+          new Notification('말뚝 시간표', { body: `${m2t(p.time)} — ${p.name}` });
+        }
+      }, ms);
+      notifyTimers.push(tid);
+    }
+  });
+}
+
+async function toggleNotify() {
+  if (!notifyEnabled) {
+    if ('Notification' in window) {
+      const perm = await Notification.requestPermission();
+      if (perm === 'granted') {
+        notifyEnabled = true;
+        scheduleNotifications();
+      }
+    }
+  } else {
+    notifyEnabled = false;
+    notifyTimers.forEach(t => clearTimeout(t));
+    notifyTimers = [];
+  }
+  render();
+}
+
+// ── Actions ──
+function doShift(amount) {
+  state.pegs = state.pegs.map(p => {
+    let ok = false;
+    if (shiftMode==='all') ok=true;
+    else if (shiftMode==='group') ok=(p.group===shiftGroup);
+    else if (shiftMode==='selected') ok=selectedPegs.has(p.id);
+    if (!ok) return p;
+    return {...p, time:((p.time+amount)%1440+1440)%1440};
+  });
+  saveState();
+  scheduleNotifications();
+  render();
+}
+
+function addPeg(name, time, type, group) {
+  state.pegs.push({id:state.nextId++, name, time:t2m(time), type, group});
+  saveState(); scheduleNotifications(); addMode=false; render();
+}
+
+function removePeg(id) {
+  state.pegs = state.pegs.filter(p=>p.id!==id);
+  selectedPegs.delete(id);
+  expandedSeg=null; saveState(); scheduleNotifications(); render();
+}
+
+function updatePeg(id, updates) {
+  state.pegs = state.pegs.map(p=>p.id===id?{...p,...updates}:p);
+  saveState(); scheduleNotifications(); render();
+}
+
+function toggleCheck(segId) {
+  state.checked[segId] = !state.checked[segId];
+  saveState(); render();
+}
+
+function toggleSelect(id) {
+  if(selectedPegs.has(id)) selectedPegs.delete(id); else selectedPegs.add(id);
+  render();
+}
+
+// ── Render ──
+function render() {
+  const segments = getSegments();
+  const groups = getGroups();
+  const total = segments.length;
+  const done = Object.values(state.checked).filter(Boolean).length;
+  const pct = total>0 ? Math.round(done/total*100) : 0;
+
+  let html = '';
+
+  // Header
+  html += `<div class="hdr"><h1><span>⏐</span> 말뚝 시간표</h1>
+    <p>말뚝을 박고, 사이를 살아가세요</p></div>`;
+
+  // Bar
+  html += `<div class="bar-wrap"><div class="bar">`;
+  segments.forEach(seg => {
+    const w = (seg.duration/1440*100);
+    const isMaj = seg.from.type==='major';
+    const chk = state.checked[seg.id];
+    const bg = chk ? 'var(--okd)' : isMaj ? 'rgba(232,93,58,0.12)' : 'rgba(58,142,232,0.12)';
+    const c = chk ? 'var(--ok)' : isMaj ? 'var(--major)' : 'var(--minor)';
+    html += `<div class="bar-seg" style="width:${w}%;background:${bg}" onclick="toggleExpand('${seg.id}')">`;
+    if(w>6) html += `<span class="lbl" style="color:${c}">${seg.from.name}</span>`;
+    if(w>10) html += `<span class="tm">${m2t(seg.from.time)}</span>`;
+    html += `</div>`;
+  });
+  html += `</div></div>`;
+
+  // Segments list
+  segments.forEach(seg => {
+    const isMaj = seg.from.type==='major';
+    const chk = state.checked[seg.id];
+    const exp = expandedSeg===seg.id;
+    const c = isMaj?'var(--major)':'var(--minor)';
+
+    html += `<div class="seg">`;
+    html += `<div class="seg-row${exp?' expanded':''}${chk?' checked':''}" onclick="toggleExpand('${seg.id}')">`;
+    html += `<div class="chk${chk?' on':''}" onclick="event.stopPropagation();toggleCheck('${seg.id}')"></div>`;
+    html += `<div class="peg-bar${isMaj?' major':''}" style="background:${c}"></div>`;
+    html += `<div class="seg-info">`;
+    html += `<div class="seg-name${isMaj?' major':''}${chk?' done':''}">${seg.from.name}`;
+    if(seg.from.group) html += `<span class="seg-grp">${seg.from.group}</span>`;
+    html += `</div>`;
+    html += `<div class="seg-time">${m2t(seg.from.time)} → ${m2t(seg.to.time)}<span class="seg-dur" style="color:${c}">${durStr(seg.duration)}</span></div>`;
+    html += `</div>`;
+    if(shiftMode==='selected') {
+      html += `<div class="sel-dot${selectedPegs.has(seg.from.id)?' on':''}" onclick="event.stopPropagation();toggleSelect(${seg.from.id})"></div>`;
+    }
+    html += `<span class="seg-arrow">${exp?'▲':'▼'}</span>`;
+    html += `</div>`;
+
+    if(exp) {
+      html += `<div class="seg-edit">
+        <div class="row">
+          <input value="${seg.from.name}" onchange="updatePeg(${seg.from.id},{name:this.value})" placeholder="이름">
+          <input type="time" value="${m2t(seg.from.time)}" onchange="updatePeg(${seg.from.id},{time:t2m(this.value)})">
+          <select onchange="updatePeg(${seg.from.id},{type:this.value})">
+            <option value="major"${seg.from.type==='major'?' selected':''}>대말뚝</option>
+            <option value="minor"${seg.from.type==='minor'?' selected':''}>소말뚝</option>
+          </select>
+        </div>
+        <div class="row">
+          <input value="${seg.from.group}" onchange="updatePeg(${seg.from.id},{group:this.value})" placeholder="그룹 (예: 식사, 생활)">
+          <button class="btn-del" onclick="removePeg(${seg.from.id})">삭제</button>
+        </div>
+      </div>`;
+    }
+    html += `</div>`;
+  });
+
+  // Add button / panel
+  if(addMode) {
+    html += `<div class="add-panel">
+      <div class="title">말뚝 추가</div>
+      <div class="row">
+        <input id="add-name" placeholder="이름">
+        <input id="add-time" type="time" value="12:00">
+        <select id="add-type"><option value="minor">소말뚝</option><option value="major">대말뚝</option></select>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <input id="add-group" placeholder="그룹 (선택)">
+        <button class="btn-add" onclick="doAdd()">추가</button>
+        <button class="btn-cancel" onclick="addMode=false;render()">취소</button>
+      </div>
+    </div>`;
+  } else {
+    html += `<button class="add-btn" onclick="addMode=true;render()">+ 말뚝 추가</button>`;
+  }
+
+  // Shift
+  html += `<div class="shift-panel"><div class="title">밀기 / 당기기</div>`;
+  html += `<div class="mode-btns">`;
+  ['all','group','selected'].forEach(m => {
+    const lbl = {all:'전체',group:'그룹별',selected:'선택'}[m];
+    html += `<button class="mode-btn${shiftMode===m?' on':''}" onclick="setShiftMode('${m}')">${lbl}</button>`;
+  });
+  html += `</div>`;
+
+  if(shiftMode==='group') {
+    html += `<div class="grp-btns">`;
+    if(groups.length===0) html += `<span class="sel-info">그룹이 없습니다</span>`;
+    groups.forEach(g => {
+      html += `<button class="grp-btn${shiftGroup===g?' on':''}" onclick="shiftGroup='${g}';render()">${g}</button>`;
+    });
+    html += `</div>`;
+  }
+  if(shiftMode==='selected') {
+    html += `<div class="sel-info">위 목록에서 ● 눌러 선택 (${selectedPegs.size}개)</div>`;
+  }
+  if(shiftMode) {
+    html += `<div class="shift-row">
+      <button class="shift-left" onclick="doShift(-shiftAmount)">◀ ${shiftAmount}분</button>
+      <select class="shift-sel" onchange="shiftAmount=+this.value;render()">
+        ${[15,30,60,120].map(v=>`<option value="${v}"${shiftAmount===v?' selected':''}>${v}분</option>`).join('')}
+      </select>
+      <button class="shift-right" onclick="doShift(shiftAmount)">${shiftAmount}분 ▶</button>
+    </div>`;
+  }
+  html += `</div>`;
+
+  // Notify
+  html += `<div class="notify-panel"><div class="title">알림</div>
+    <div class="notify-row">
+      <span class="notify-status">${notifyEnabled?'각 말뚝 1분 전 알림':'알림 꺼짐'}</span>
+      <button class="toggle${notifyEnabled?' on':''}" onclick="toggleNotify()"></button>
+    </div>
+  </div>`;
+
+  // Progress
+  html += `<div class="progress"><span class="lbl">오늘 진행률</span><span class="val">${pct}%</span></div>`;
+
+  document.getElementById('app').innerHTML = html;
+}
+
+function toggleExpand(id) { expandedSeg = expandedSeg===id ? null : id; render(); }
+function setShiftMode(m) { shiftMode = shiftMode===m ? null : m; render(); }
+function doAdd() {
+  const name = document.getElementById('add-name').value.trim();
+  if(!name) return;
+  addPeg(name, document.getElementById('add-time').value,
+    document.getElementById('add-type').value,
+    document.getElementById('add-group').value.trim());
+}
+
+// ── Init ──
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js');
+}
+
+// Check if notification was previously enabled
+if ('Notification' in window && Notification.permission === 'granted') {
+  notifyEnabled = true;
+}
+
+render();
+scheduleNotifications();
+
+// Re-schedule every hour
+setInterval(scheduleNotifications, 3600000);
+</script>
+</body>
+</html>
